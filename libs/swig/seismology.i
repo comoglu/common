@@ -72,6 +72,8 @@
 #include "seiscomp/seismology/locatorinterface.h"
 #include "seiscomp/seismology/regions.h"
 #include "seiscomp/seismology/ttt.h"
+#include "seiscomp/seismology/autoloc/depthphases.h"
+#include "seiscomp/seismology/autoloc/regiondepth.h"
 %}
 
 %include "std_string.i"
@@ -109,3 +111,5 @@
 %include "seiscomp/seismology/regions.h"
 %include "seiscomp/seismology/locatorinterface.h"
 %include "seiscomp/seismology/ttt.h"
+%include "seiscomp/seismology/autoloc/depthphases.h"
+%include "seiscomp/seismology/autoloc/regiondepth.h"
