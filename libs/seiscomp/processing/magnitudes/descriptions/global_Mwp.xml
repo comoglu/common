@@ -70,12 +70,12 @@
 					<group name="shallow">
 						<description>
 						Coefficients for shallow events (0 – shallowMaxDepth km).
-						Defaults calibrated from GCMT 2015–2026, N=891, sigma=0.204.
+						Defaults calibrated from GCMT 2015–2026, N=1002, sigma=0.204.
 						</description>
-						<parameter name="a" type="double" default="1.017">
+						<parameter name="a" type="double" default="1.006">
 							<description>Slope of Mw = a * Mwp + b for shallow events.</description>
 						</parameter>
-						<parameter name="b" type="double" default="0.107">
+						<parameter name="b" type="double" default="0.187">
 							<description>Intercept of Mw = a * Mwp + b for shallow events.</description>
 						</parameter>
 						<parameter name="stdError" type="double" default="0.204">
@@ -85,30 +85,30 @@
 					<group name="intermediate">
 						<description>
 						Coefficients for intermediate-depth events (shallowMaxDepth – intermediateMaxDepth km).
-						Defaults calibrated from GCMT 2015–2026, N=202, sigma=0.085.
+						Defaults calibrated from GCMT 2015–2026, N=215, sigma=0.081.
 						</description>
-						<parameter name="a" type="double" default="1.143">
+						<parameter name="a" type="double" default="1.147">
 							<description>Slope of Mw = a * Mwp + b for intermediate events.</description>
 						</parameter>
-						<parameter name="b" type="double" default="-0.954">
+						<parameter name="b" type="double" default="-0.980">
 							<description>Intercept of Mw = a * Mwp + b for intermediate events.</description>
 						</parameter>
-						<parameter name="stdError" type="double" default="0.085">
+						<parameter name="stdError" type="double" default="0.081">
 							<description>Standard error of the intermediate Mw(Mwp) regression.</description>
 						</parameter>
 					</group>
 					<group name="deep">
 						<description>
 						Coefficients for deep events (depth &gt; intermediateMaxDepth km).
-						Defaults calibrated from GCMT 2015–2026, N=104, sigma=0.103.
+						Defaults calibrated from GCMT 2015–2026, N=114, sigma=0.112.
 						</description>
-						<parameter name="a" type="double" default="1.134">
+						<parameter name="a" type="double" default="1.160">
 							<description>Slope of Mw = a * Mwp + b for deep events.</description>
 						</parameter>
-						<parameter name="b" type="double" default="-0.907">
+						<parameter name="b" type="double" default="-1.108">
 							<description>Intercept of Mw = a * Mwp + b for deep events.</description>
 						</parameter>
-						<parameter name="stdError" type="double" default="0.103">
+						<parameter name="stdError" type="double" default="0.112">
 							<description>Standard error of the deep Mw(Mwp) regression.</description>
 						</parameter>
 					</group>
