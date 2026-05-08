@@ -49,10 +49,26 @@ class SC_SYSTEM_CLIENT_API MagnitudeProcessor_Mwp : public MagnitudeProcessor {
 		                  double &estimation, double &stdError) override;
 
 	private:
-		// Whitmore et al. (2002) defaults; overridable via global.cfg
-		double _mwA{1.186};
-		double _mwB{-1.222};
-		double _mwStdError{0.4};
+		double _lastDepth{0.0};
+
+		// Depth-class boundaries (km); configurable via global.cfg
+		double _shallowMaxDepth{70.0};
+		double _intermediateMaxDepth{300.0};
+
+		// Shallow (0–70 km): calibrated from GCMT 2015–2026, N=891
+		double _mwShallowA{1.017};
+		double _mwShallowB{0.107};
+		double _mwShallowStdError{0.204};
+
+		// Intermediate (70–300 km): calibrated from GCMT 2015–2026, N=202
+		double _mwIntermediateA{1.143};
+		double _mwIntermediateB{-0.954};
+		double _mwIntermediateStdError{0.085};
+
+		// Deep (>300 km): calibrated from GCMT 2015–2026, N=104
+		double _mwDeepA{1.134};
+		double _mwDeepB{-0.907};
+		double _mwDeepStdError{0.103};
 };
 
 

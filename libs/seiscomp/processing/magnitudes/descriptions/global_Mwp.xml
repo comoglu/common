@@ -41,39 +41,77 @@
 
 			<extend-struct type="GlobalMagnitudeProfile" match-name="Mwp">
 				<description>
-				Mw(Mwp) regression parameters (Whitmore et al. 2002).
-				Override these after running a regional or updated calibration.
+				Depth-dependent Mw(Mwp) regression parameters calibrated against GCMT
+				(2015–2026, M≥6.0, N=1197).  Three depth classes are used because
+				regression slopes differ systematically: shallow crustal events require
+				a smaller correction than intermediate or deep events.  Depth boundaries
+				and all coefficients are configurable without recompiling.
 				</description>
 				<group name="estimateMw">
 					<description>
-					Linear regression coefficients for Mw = a * Mwp + b.
-					Defaults are from Whitmore et al. (2002), fitted against Harvard CMT
-					catalogues at that time.  These can be updated from larger modern
-					datasets (e.g. using mwp_calibrate.py in the SeisComP-contrib tools).
+					Depth-class boundaries and per-class linear regression coefficients
+					for Mw = a * Mwp + b.  The depth of the source from computeMagnitude()
+					selects which coefficient set is applied in estimateMw().
 					</description>
-					<parameter name="a" type="double" default="1.186">
+					<parameter name="shallowMaxDepth" type="double" default="70.0">
 						<description>
-						Slope of the Mw(Mwp) linear regression: Mw = a * Mwp + b.
-						Whitmore et al. (2002) value: 1.186.
-						Values above 1.0 correct for systematic Mwp underestimation
-						at high magnitudes.
+						Upper depth boundary (km) of the shallow class.
+						Events with depth &lt;= shallowMaxDepth use the shallow coefficients.
 						</description>
 					</parameter>
-					<parameter name="b" type="double" default="-1.222">
+					<parameter name="intermediateMaxDepth" type="double" default="300.0">
 						<description>
-						Intercept of the Mw(Mwp) linear regression: Mw = a * Mwp + b.
-						Whitmore et al. (2002) value: -1.222.
+						Upper depth boundary (km) of the intermediate class.
+						Events with depth &gt; shallowMaxDepth and &lt;= intermediateMaxDepth
+						use the intermediate coefficients.  Events deeper than this use
+						the deep coefficients.
 						</description>
 					</parameter>
-					<parameter name="stdError" type="double" default="0.4">
+					<group name="shallow">
 						<description>
-						Standard error of the Mw(Mwp) regression, reported with the
-						magnitude estimate.  The SeisComP default of 0.4 is a
-						conservative placeholder from Whitmore et al. (2002).
-						Update after calibration — shallow events typically show
-						sigma ~0.25 mag, deep events (>300 km) ~0.09 mag.
+						Coefficients for shallow events (0 – shallowMaxDepth km).
+						Defaults calibrated from GCMT 2015–2026, N=891, sigma=0.204.
 						</description>
-					</parameter>
+						<parameter name="a" type="double" default="1.017">
+							<description>Slope of Mw = a * Mwp + b for shallow events.</description>
+						</parameter>
+						<parameter name="b" type="double" default="0.107">
+							<description>Intercept of Mw = a * Mwp + b for shallow events.</description>
+						</parameter>
+						<parameter name="stdError" type="double" default="0.204">
+							<description>Standard error of the shallow Mw(Mwp) regression.</description>
+						</parameter>
+					</group>
+					<group name="intermediate">
+						<description>
+						Coefficients for intermediate-depth events (shallowMaxDepth – intermediateMaxDepth km).
+						Defaults calibrated from GCMT 2015–2026, N=202, sigma=0.085.
+						</description>
+						<parameter name="a" type="double" default="1.143">
+							<description>Slope of Mw = a * Mwp + b for intermediate events.</description>
+						</parameter>
+						<parameter name="b" type="double" default="-0.954">
+							<description>Intercept of Mw = a * Mwp + b for intermediate events.</description>
+						</parameter>
+						<parameter name="stdError" type="double" default="0.085">
+							<description>Standard error of the intermediate Mw(Mwp) regression.</description>
+						</parameter>
+					</group>
+					<group name="deep">
+						<description>
+						Coefficients for deep events (depth &gt; intermediateMaxDepth km).
+						Defaults calibrated from GCMT 2015–2026, N=104, sigma=0.103.
+						</description>
+						<parameter name="a" type="double" default="1.134">
+							<description>Slope of Mw = a * Mwp + b for deep events.</description>
+						</parameter>
+						<parameter name="b" type="double" default="-0.907">
+							<description>Intercept of Mw = a * Mwp + b for deep events.</description>
+						</parameter>
+						<parameter name="stdError" type="double" default="0.103">
+							<description>Standard error of the deep Mw(Mwp) regression.</description>
+						</parameter>
+					</group>
 				</group>
 			</extend-struct>
 		</configuration>
