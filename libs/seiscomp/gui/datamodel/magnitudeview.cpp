@@ -803,7 +803,20 @@ QVariant StationMagnitudeModel::data(const QModelIndex &index, int role) const {
 		if ( sm ) {
 			try {
 				if ( !sm->passedQC() ) {
-					return failedQCColor;
+					// A station that failed the QC check is highlighted only
+					// while it is actually excluded from the network magnitude.
+					// If the operator manually re-includes it (weight > 0 after
+					// recalculation) the highlight must be dropped, otherwise the
+					// row keeps looking excluded although it now contributes.
+					bool excluded = true;
+					try {
+						excluded = _magnitude->stationMagnitudeContribution(index.row())->weight() <= 0.0;
+					}
+					catch ( ... ) {}
+
+					if ( excluded ) {
+						return failedQCColor;
+					}
 				}
 			}
 			catch ( ... ) {}
