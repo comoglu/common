@@ -399,6 +399,7 @@ class SC_GUI_API OriginLocatorView : public QWidget {
 
 		void tableArrivalsContextMenuRequested(const QPoint &pos);
 		void tableArrivalsHeaderContextMenuRequested(const QPoint &pos);
+		void selectArrivalsByCriteria();
 		void dataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight);
 		void changeArrival(int,bool);
 		void changeArrivalEnableState(int,bool);
