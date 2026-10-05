@@ -57,6 +57,7 @@
 #include <seiscomp/gui/datamodel/origindialog.h>
 #include <seiscomp/gui/datamodel/pickerview.h>
 #include <seiscomp/gui/datamodel/publicobjectevaluator.h>
+#include <seiscomp/gui/datamodel/selectioncriteriadialog.h>
 #include <seiscomp/gui/datamodel/ui_originlocatorview.h>
 #include <seiscomp/gui/datamodel/utils.h>
 #include <seiscomp/io/exporter.h>
@@ -80,6 +81,7 @@
 #include <QWidget>
 
 #include <algorithm>
+#include <cmath>
 #include <map>
 #include <set>
 
@@ -1510,7 +1512,16 @@ class PlotWidget : public OriginLocatorPlot {
 
 	protected:
 		void updateContextMenu(QMenu &menu) {
-			if ( !_customDraw ) return;
+			// The criteria action is not offered on the first-motion tab
+			// (custom draw) which does not plot arrivals by distance or
+			// azimuth
+			if ( !_customDraw ) {
+				menu.addSeparator();
+				QAction *actByCriteria = menu.addAction("Activate/deactivate by criteria...");
+				actByCriteria->setData(2001);
+				return;
+			}
+
 			menu.addSeparator();
 			QMenu *subShowStations = menu.addMenu("Draw station names");
 			QAction *act1 = subShowStations->addAction("Outwards");
@@ -1543,6 +1554,12 @@ class PlotWidget : public OriginLocatorPlot {
 		void handleContextMenuAction(QAction *action) {
 			OriginLocatorPlot::handleContextMenuAction(action);
 			if ( action == nullptr ) return;
+
+			if ( action->data().toInt() == 2001 ) {
+				emit activateByCriteriaRequested();
+				return;
+			}
+
 			if ( action->data().toInt() == 1000 ) {
 				_drawStationNames = SNM_OFF;
 				update();
@@ -3398,6 +3415,8 @@ void OriginLocatorView::init() {
 	        this, SLOT(commitFocalMechanism(bool)));
 	connect(SC_D.residuals, SIGNAL(autoInversionRequested()),
 	        this, SLOT(autoInvertFocalMechanism()));
+	connect(SC_D.residuals, SIGNAL(activateByCriteriaRequested()),
+	        this, SLOT(activateArrivalsByCriteriaFromPlot()));
 
 	connect(SC_D.map, SIGNAL(arrivalChanged(int,bool)), this, SLOT(changeArrival(int,bool)));
 	connect(SC_D.map, SIGNAL(hoverArrival(int)), this, SLOT(hoverArrival(int)));
@@ -8393,6 +8412,9 @@ void OriginLocatorView::tableArrivalsContextMenuRequested(const QPoint &pos) {
 		actionDeactivate->setEnabled(false);
 	}
 
+	// Operates on all arrivals, independent of the current selection.
+	QAction *actionByCriteria = menu.addAction("Activate/deactivate by criteria...");
+
 	menu.addSeparator();
 
 	QAction *actionRename = menu.addAction("Rename selected arrivals");
@@ -8430,6 +8452,8 @@ void OriginLocatorView::tableArrivalsContextMenuRequested(const QPoint &pos) {
 		activateSelectedArrivals(Seismology::LocatorInterface::F_BACKAZIMUTH, false);
 	else if ( result == actionDeactivateSlow )
 		activateSelectedArrivals(Seismology::LocatorInterface::F_SLOWNESS, false);
+	else if ( result == actionByCriteria )
+		activateArrivalsByCriteria();
 
 	else if ( result == actionInvertSelection )
 		selectArrivals(InvertFilter(SC_D.ui.tableArrivals->selectionModel()));
@@ -8606,6 +8630,239 @@ void OriginLocatorView::activateSelectedArrivals(Seismology::LocatorInterface::F
 
 	if ( changed )
 		startBlinking(QColor(255,128,0), SC_D.ui.btnRelocate);
+}
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+
+
+
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+void OriginLocatorView::activateArrivalsByCriteria() {
+	activateArrivalsByCriteria(QString());
+}
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+
+
+
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+void OriginLocatorView::activateArrivalsByCriteriaFromPlot() {
+	// Start with the criterion the current plot shows on its axis
+	switch ( SC_D.plotTab->currentIndex() ) {
+		case PT_AZIMUTH:
+		case PT_POLAR:
+			activateArrivalsByCriteria("azimuth");
+			break;
+		default:
+			activateArrivalsByCriteria("distance");
+			break;
+	}
+}
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+
+
+
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+void OriginLocatorView::activateArrivalsByCriteria(const QString &presetCriterion) {
+	if ( !SC_D.currentOrigin ) return;
+
+	size_t arrivalCount = SC_D.currentOrigin->arrivalCount();
+	if ( arrivalCount == 0 ) return;
+
+	const QString degSymbol = QString::fromUtf8("\xC2\xB0");
+
+	// Distance is entered in whatever unit the arrival table shows so the
+	// numbers match what the analyst reads off the DISTANCE column.
+	bool distanceInKM = SCScheme.unit.distanceInKM;
+	QString distUnit = distanceInKM ? QString("km") : degSymbol;
+	double distUpper = distanceInKM ? Math::Geo::deg2km(180.0) : 180.0;
+
+	// Seed the distance range from the current origin's actual span.
+	double distSeedMin = distUpper;
+	double distSeedMax = 0.0;
+	for ( size_t i = 0; i < arrivalCount; ++i ) {
+		try {
+			double d = SC_D.currentOrigin->arrival(i)->distance();
+			if ( distanceInKM ) d = Math::Geo::deg2km(d);
+			distSeedMin = std::min(distSeedMin, d);
+			distSeedMax = std::max(distSeedMax, d);
+		}
+		catch ( Core::ValueException & ) {}
+	}
+	if ( distSeedMin > distSeedMax ) {
+		distSeedMin = 0.0;
+		distSeedMax = distUpper;
+	}
+
+	QList<SelectionCriteriaDialog::Criterion> criteria;
+
+	SelectionCriteriaDialog::Criterion cDist;
+	cDist.id          = "distance";
+	cDist.label       = tr("Distance");
+	cDist.unit        = distUnit;
+	cDist.minimum     = 0.0;
+	cDist.maximum     = distUpper;
+	cDist.decimals    = SCScheme.precision.distance;
+	cDist.range       = true;
+	cDist.defaultLow  = distSeedMin;
+	cDist.defaultHigh = distSeedMax;
+	// Without saved settings or preset, distance is enabled initially
+	cDist.enabledByDefault = presetCriterion.isEmpty() || presetCriterion == "distance";
+	criteria.append(cDist);
+
+	SelectionCriteriaDialog::Criterion cAzi;
+	cAzi.id          = "azimuth";
+	cAzi.label       = tr("Azimuth");
+	cAzi.unit        = degSymbol;
+	cAzi.minimum     = 0.0;
+	cAzi.maximum     = 360.0;
+	cAzi.decimals    = 1;
+	cAzi.range       = true;
+	cAzi.defaultLow  = 0.0;
+	cAzi.defaultHigh = 360.0;
+	cAzi.enabledByDefault = presetCriterion == "azimuth";
+	criteria.append(cAzi);
+
+	SelectionCriteriaDialog::Criterion cRes;
+	cRes.id          = "residual";
+	cRes.label       = tr("|Time residual| \xE2\x89\xA4");
+	cRes.unit        = tr("s");
+	cRes.minimum     = 0.0;
+	cRes.maximum     = 120.0;
+	cRes.decimals    = 2;
+	cRes.range       = false;
+	cRes.defaultHigh = 2.0;
+	cRes.enabledByDefault = presetCriterion == "residual";
+	criteria.append(cRes);
+
+	// Weight is the weight the locator assigned to the arrival. LOCSAT
+	// only uses 0 and 1, other locators may assign values in between
+	// which do not necessarily follow the residual.
+	SelectionCriteriaDialog::Criterion cWeight;
+	cWeight.id          = "weight";
+	cWeight.label       = tr("Weight \xE2\x89\xA5");
+	cWeight.minimum     = 0.0;
+	cWeight.maximum     = 1.0;
+	cWeight.decimals    = 2;
+	cWeight.range       = false;
+	cWeight.defaultHigh = 0.5;
+	cWeight.enabledByDefault = presetCriterion == "weight";
+	criteria.append(cWeight);
+
+	SelectionCriteriaDialog dlg(tr("Activate/deactivate arrivals by criteria"),
+	                            tr("Arrivals"), criteria, this);
+
+	// Restore the last used criteria and action, and additionally enable
+	// the criterion shown by the plot the dialog was opened from
+	dlg.loadSettings("ArrivalCriteria");
+	if ( !presetCriterion.isEmpty() ) {
+		dlg.setCriterionEnabled(presetCriterion, true);
+	}
+
+	if ( dlg.exec() != QDialog::Accepted ) return;
+
+	dlg.saveSettings("ArrivalCriteria");
+
+	SelectionCriteriaDialog::Result res = dlg.result();
+
+	// Azimuth range that may wrap across north, e.g. 350 to 10.
+	auto azimuthInRange = [](double az, double lo, double hi) {
+		auto wrap = [](double a) { return std::fmod(std::fmod(a, 360.0) + 360.0, 360.0); };
+		az = wrap(az); lo = wrap(lo); hi = wrap(hi);
+		return lo <= hi ? (az >= lo && az <= hi) : (az >= lo || az <= hi);
+	};
+
+	bool useDist   = res.enabled("distance");
+	bool useAzi    = res.enabled("azimuth");
+	bool useRes    = res.enabled("residual");
+	bool useWeight = res.enabled("weight");
+
+	double distLoDeg = 0.0, distHiDeg = 0.0;
+	if ( useDist ) {
+		distLoDeg = res.low("distance");
+		distHiDeg = res.high("distance");
+		if ( distLoDeg > distHiDeg ) std::swap(distLoDeg, distHiDeg);
+		if ( distanceInKM ) {
+			distLoDeg = Math::Geo::km2deg(distLoDeg);
+			distHiDeg = Math::Geo::km2deg(distHiDeg);
+		}
+	}
+
+	int activated = 0;
+	int deactivated = 0;
+
+	for ( size_t i = 0; i < arrivalCount; ++i ) {
+		Arrival *arr = SC_D.currentOrigin->arrival(i);
+		int row = static_cast<int>(i);
+
+		// A row matches only if every enabled criterion can be evaluated
+		// and is satisfied. An unset value counts as "does not match".
+		bool match = true;
+
+		if ( match && useDist ) {
+			try {
+				double d = arr->distance();
+				match = d >= distLoDeg && d <= distHiDeg;
+			}
+			catch ( Core::ValueException & ) { match = false; }
+		}
+
+		if ( match && useAzi ) {
+			try {
+				match = azimuthInRange(arr->azimuth(),
+				                       res.low("azimuth"), res.high("azimuth"));
+			}
+			catch ( Core::ValueException & ) { match = false; }
+		}
+
+		if ( match && useRes ) {
+			try {
+				match = std::fabs(arr->timeResidual()) <= res.high("residual");
+			}
+			catch ( Core::ValueException & ) { match = false; }
+		}
+
+		if ( match && useWeight ) {
+			try {
+				match = arr->weight() >= res.high("weight");
+			}
+			catch ( Core::ValueException & ) { match = false; }
+		}
+
+		bool wasUsed = SC_D.modelArrivals.useArrival(row);
+
+		switch ( res.mode() ) {
+			case SelectionCriteriaDialog::ActivateMatchingDeactivateRest:
+				SC_D.modelArrivals.setData(SC_D.modelArrivals.index(row, USED),
+				                           match ? 1 : 0, RestoreRole);
+				break;
+			case SelectionCriteriaDialog::DeactivateMatching:
+				if ( match )
+					SC_D.modelArrivals.setData(SC_D.modelArrivals.index(row, USED),
+					                           0, RestoreRole);
+				break;
+			case SelectionCriteriaDialog::DeactivateNonMatching:
+				if ( !match )
+					SC_D.modelArrivals.setData(SC_D.modelArrivals.index(row, USED),
+					                           0, RestoreRole);
+				break;
+		}
+
+		bool nowUsed = SC_D.modelArrivals.useArrival(row);
+		if ( nowUsed && !wasUsed ) ++activated;
+		else if ( !nowUsed && wasUsed ) ++deactivated;
+	}
+
+	if ( activated || deactivated ) {
+		startBlinking(QColor(255,128,0), SC_D.ui.btnRelocate);
+		QByteArray msg = QString("Arrival selection: %1 activated, %2 deactivated")
+		                 .arg(activated).arg(deactivated).toLatin1();
+		SCApp->showMessage(msg.constData());
+	}
+	else {
+		SCApp->showMessage("Arrival selection: no arrivals changed");
+	}
 }
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

@@ -206,6 +206,10 @@ class SC_GUI_API OriginLocatorPlot : public DiagramWidget {
 		                             QPoint pos = QPoint(0, 0));
 		void autoInversionRequested();
 
+		//! Emitted from the plot's context menu to open the same
+		//! "Activate/deactivate by criteria" dialog as the arrival table
+		void activateByCriteriaRequested();
+
 
 	protected slots:
 		virtual void linkClicked();
@@ -388,6 +392,8 @@ class SC_GUI_API OriginLocatorView : public QWidget {
 
 		void tableArrivalsContextMenuRequested(const QPoint &pos);
 		void tableArrivalsHeaderContextMenuRequested(const QPoint &pos);
+		void activateArrivalsByCriteria();
+		void activateArrivalsByCriteriaFromPlot();
 		void dataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight);
 		void changeArrival(int,bool);
 		void changeArrivalEnableState(int,bool);
@@ -481,6 +487,10 @@ class SC_GUI_API OriginLocatorView : public QWidget {
 		void deleteSelectedArrivals();
 		void activateSelectedArrivals(Seiscomp::Seismology::LocatorInterface::Flags flags,
 		                              bool activate);
+		//! Opens the criteria dialog with the last used settings and the
+		//! given criterion (distance, azimuth, residual or weight)
+		//! additionally enabled. An empty preset enables nothing extra.
+		void activateArrivalsByCriteria(const QString &presetCriterion);
 		void renameArrivals();
 
 		void commitWithOptions(const void *options);
