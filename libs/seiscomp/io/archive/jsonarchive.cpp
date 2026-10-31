@@ -49,6 +49,13 @@ namespace IO {
 namespace {
 
 
+// Numbers are written with full precision, so parse them with full
+// precision as well. Otherwise the last digits of doubles are lost when
+// reading back what has been written.
+constexpr unsigned ParseFlags = rapidjson::kParseDefaultFlags |
+                                rapidjson::kParseFullPrecisionFlag;
+
+
 struct jsontime {
 	jsontime(const Core::Time &r) : ref(r) {}
 	const Core::Time &ref;
@@ -217,7 +224,7 @@ bool JSONArchive::open(const char* file) {
 
 	_document = new Document;
 	InputStream is(_buf);
-	_document->ParseStream(is);
+	_document->ParseStream<ParseFlags>(is);
 	if ( _document->HasParseError() ) {
 		SEISCOMP_ERROR("%s", rapidjson::GetParseError_En(_document->GetParseError()));
 		close();
@@ -244,7 +251,7 @@ bool JSONArchive::open(std::streambuf *buf) {
 
 	_document = new Document;
 	InputStream is(_buf);
-	_document->ParseStream(is);
+	_document->ParseStream<ParseFlags>(is);
 	if ( _document->HasParseError() ) {
 		SEISCOMP_ERROR("%s", rapidjson::GetParseError_En(_document->GetParseError()));
 		close();
@@ -279,7 +286,7 @@ bool JSONArchive::from(const Value *v) {
 bool JSONArchive::from(const char *str) {
 	close();
 	_document = new Document;
-	_document->Parse(str);
+	_document->Parse<ParseFlags>(str);
 	if ( _document->HasParseError() ) {
 		SEISCOMP_ERROR("%s", rapidjson::GetParseError_En(_document->GetParseError()));
 		close();
@@ -300,9 +307,9 @@ bool JSONArchive::from(char *str, bool insitu) {
 	close();
 	_document = new Document;
 	if ( insitu )
-		_document->ParseInsitu(str);
+		_document->ParseInsitu<ParseFlags>(str);
 	else
-		_document->Parse(str);
+		_document->Parse<ParseFlags>(str);
 	if ( _document->HasParseError() ) {
 		SEISCOMP_ERROR("%s", rapidjson::GetParseError_En(_document->GetParseError()));
 		close();
