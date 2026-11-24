@@ -1487,7 +1487,9 @@ void MagnitudeView::init(Seiscomp::DataModel::DatabaseQuery *) {
 		try {
 			SC_D.map->setStationsMaxDist(SCApp->configGetDouble("olv.map.stations.unassociatedMaxDist"));
 		}
-		catch ( ... ) {}
+		catch ( ... ) {
+			SC_D.map->setStationsMaxDist(360);
+		}
 	}
 
 	hboxLayout = new QHBoxLayout(SC_D.ui.frameMagnitudeTypes);

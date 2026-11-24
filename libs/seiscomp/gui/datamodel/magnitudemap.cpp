@@ -235,6 +235,8 @@ struct StationLayer : Map::Layer {
 		bool                 validLocation{false};
 		bool                 isActive{false};
 		bool                 isMagnitude{false};
+		// Added from inventory and not because of an arrival
+		bool                 isUnassociated{false};
 		std::string          net;
 		std::string          code;
 		double               residual;
@@ -368,7 +370,8 @@ void MagnitudeMap::setMagnitude(DataModel::Magnitude* nm) {
 	_magnitudes.clear();
 
 	for ( int i = 0; i < SYMBOLLAYER->stations.size(); ++i ) {
-		SYMBOLLAYER->stations[i]->isActive = false;
+		// Unassociated stations stay active to be drawn as idle stations
+		SYMBOLLAYER->stations[i]->isActive = SYMBOLLAYER->stations[i]->isUnassociated;
 		SYMBOLLAYER->stations[i]->isMagnitude = false;
 		SYMBOLLAYER->stations[i]->magnitudeId = -1;
 	}
@@ -388,7 +391,9 @@ void MagnitudeMap::setMagnitude(DataModel::Magnitude* nm) {
 			try {
 				setMagnitudeState(i, contrib->weight() > 0.0);
 			}
-			catch ( ... ) {}
+			catch ( ... ) {
+				setMagnitudeState(i, false);
+			}
 		}
 
 		for ( auto symbol : SYMBOLLAYER->stations ) {
@@ -568,6 +573,7 @@ void MagnitudeMap::setOrigin(DataModel::Origin* o) {
 				);
 
 				SYMBOLLAYER->stations.back()->isActive = true;
+				SYMBOLLAYER->stations.back()->isUnassociated = true;
 				_stationCodes[stationCode] = SYMBOLLAYER->stations.size() - 1;
 			}
 		}
