@@ -718,6 +718,12 @@ bool SDSArchive::setStart(const string &fname, bool bsearch) {
 			}
 		}
 
+		// The loop does not visit a single record: skip it if it ends before the
+		// requested start time.
+		if ( (half == 0) && (physFirstStartTime < stime) && (physFirstEndTime <= stime) ) {
+			half = 1;
+		}
+
 		offset = half * reclen;
 	}
 	else {

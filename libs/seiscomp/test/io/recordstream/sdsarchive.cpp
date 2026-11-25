@@ -339,4 +339,40 @@ BOOST_AUTO_TEST_CASE(READ_ARCHIVE2) {
 
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+BOOST_AUTO_TEST_CASE(READ_SINGLE_RECORD) {
+	// The day file holds one record: 16:18:01.7305 ~ 16:18:03.7905
+	auto count = [](const Time &startTime, const Time &endTime) {
+		SDSArchive sds("single-record-archive");
+		sds.addStream("FR", "SALF", "00", "HHN", startTime, endTime);
+
+		int records = 0;
+		RecordPtr rec;
+		while ( (rec = sds.next()) ) {
+			++records;
+		}
+
+		return records;
+	};
+
+	// Time window covers the record
+	BOOST_CHECK_EQUAL(count(Time(2018,6,30,16,18,0,0), Time(2018,6,30,16,19,0,0)), 1);
+	// Time window starts within the record
+	BOOST_CHECK_EQUAL(count(Time(2018,6,30,16,18,3,0), Time(2018,6,30,16,19,0,0)), 1);
+	// Time window ends within the record
+	BOOST_CHECK_EQUAL(count(Time(2018,6,30,16,17,0,0), Time(2018,6,30,16,18,2,0)), 1);
+	// Time window is within the record
+	BOOST_CHECK_EQUAL(count(Time(2018,6,30,16,18,2,0), Time(2018,6,30,16,18,3,0)), 1);
+	// Time window is before the record
+	BOOST_CHECK_EQUAL(count(Time(2018,6,30,16,17,0,0), Time(2018,6,30,16,18,0,0)), 0);
+	// Time window starts at the end of the record
+	BOOST_CHECK_EQUAL(count(Time(2018,6,30,16,18,3,790500), Time(2018,6,30,16,19,0,0)), 0);
+	// Time window is after the record
+	BOOST_CHECK_EQUAL(count(Time(2018,6,30,21,6,18,0), Time(2018,6,30,22,0,0,0)), 0);
+}
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+
+
+
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 BOOST_AUTO_TEST_SUITE_END()
